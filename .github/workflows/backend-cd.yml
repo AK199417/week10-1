@@ -63,18 +63,52 @@ jobs:
           kubectl apply -n "${K8S_NAMESPACE}" -f k8s/product-service.yaml
           kubectl apply -n "${K8S_NAMESPACE}" -f k8s/order-service.yaml
 
-      - name: Wait for backend rollouts
+            - name: Wait for backend rollouts (DB + services)
         run: |
-          # Update names if your Deployment names differ
-          kubectl rollout status deploy/product -n "${K8S_NAMESPACE}" --timeout=300s
-          kubectl rollout status deploy/order   -n "${K8S_NAMESPACE}" --timeout=300s
+          NS="ecommerce"
+          # DB deployments
+          kubectl rollout status deploy/product-db-deployment-w08e1 -n "$NS" --timeout=300s
+          kubectl rollout status deploy/order-db-deployment-w08e1   -n "$NS" --timeout=300s
+          # Service deployments
+          kubectl rollout status deploy/product-service-w08e1 -n "$NS" --timeout=300s
+          kubectl rollout status deploy/order-service-w08e1   -n "$NS" --timeout=300s
 
       - name: Wait for Backend LoadBalancer IPs
         run: |
+          NS="ecommerce"
+          PRODUCT_SVC="product-service-w08e1"
+          ORDER_SVC="order-service-w08e1"
+
           echo "Waiting for Product & Order LoadBalancer IPs..."
           PRODUCT_IP=""
           ORDER_IP=""
-          PRODUCT_SVC="product-service-w08e1"  # change if your svc name differs
-          ORDER_SVC="order-service-w08e1"      # change if your svc name differs
           for i in $(seq 1 120); do
-            PRODUCT_I_
+            PRODUCT_IP=$(kubectl get svc "$PRODUCT_SVC" -n "$NS" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' || true)
+            ORDER_IP=$(kubectl   get svc "$ORDER_SVC"   -n "$NS" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' || true)
+            echo "Attempt $i: PRODUCT_IP=${PRODUCT_IP:-} ORDER_IP=${ORDER_IP:-}"
+            if [[ -n "${PRODUCT_IP:-}" && -n "${ORDER_IP:-}" ]]; then break; fi
+            sleep 5
+          done
+
+          if [[ -z "${PRODUCT_IP:-}" || -z "${ORDER_IP:-}" ]]; then
+            echo "Error: LB IPs not assigned in time."
+            kubectl get svc -n "$NS" -o wide
+            exit 1
+          fi
+
+          echo "PRODUCT_IP=$PRODUCT_IP" >> $GITHUB_ENV
+          echo "ORDER_IP=$ORDER_IP" >> $GITHUB_ENV
+
+      - name: Capture Product Service IP for Workflow Output
+        id: get_product_ip
+        run: echo "external_ip=${{ env.PRODUCT_IP }}" >> $GITHUB_OUTPUT
+
+      - name: Capture Order Service IP for Workflow Output
+        id: get_order_ip
+        run: echo "external_ip=${{ env.ORDER_IP }}" >> $GITHUB_OUTPUT
+
+      - name: Show services & pods (debug/screenshot)
+        run: |
+          kubectl get svc  -n ecommerce -o wide
+          kubectl get pods -n ecommerce -o wide
+
