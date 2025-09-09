@@ -37,9 +37,6 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Ensure correct subscription (optional)
-        run: az account set --subscription "${{ vars.SUBSCRIPTION_ID }}"
-
       - name: Set Kubernetes context (get AKS credentials)
         run: |
           az aks get-credentials \
