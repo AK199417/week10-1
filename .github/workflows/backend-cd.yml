@@ -63,7 +63,7 @@ jobs:
           kubectl apply -n "${K8S_NAMESPACE}" -f k8s/product-service.yaml
           kubectl apply -n "${K8S_NAMESPACE}" -f k8s/order-service.yaml
 
-            - name: Wait for backend rollouts (DB + services)
+      - name: Wait for backend rollouts (DB + services)
         run: |
           NS="ecommerce"
           # DB deployments
