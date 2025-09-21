@@ -97,6 +97,11 @@ jobs:
 
       - name: Build Order image
         run: docker build -t $ACR_LOGIN_SERVER/$ORDER_IMAGE:$IMAGE_TAG ./backend/order_service
+        
+            # ---------- Docker Hub login (needed for Scout) ----------
+      - name: Docker Hub Login
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
 
       # ---------- Docker Scout (fail on HIGH/CRITICAL) ------
       - name: Install Docker Scout
